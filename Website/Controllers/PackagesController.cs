@@ -119,7 +119,7 @@ namespace NuGetGallery
             return View(model);
         }
 
-        public virtual ActionResult ListPackages(string q, string sortOrder = Constants.DefaultPackageListSortOrder, int page = 1)
+        public virtual ActionResult ListPackages(string q, string sortOrder = "", int page = 1)
         {
             if (page < 1)
             {
@@ -129,11 +129,6 @@ namespace NuGetGallery
             IQueryable<Package> packageVersions = packageSvc.GetLatestPackageVersions(allowPrerelease: true);
 
             q = (q ?? "").Trim();
-
-            if (!String.IsNullOrEmpty(q))
-            {
-                packageVersions = packageSvc.GetLatestPackageVersions(allowPrerelease: true).Search(q);
-            }
 
             if (GetIdentity().IsAuthenticated)
             {
@@ -145,6 +140,24 @@ namespace NuGetGallery
                 packageVersions = packageVersions.Where(p => p.Listed);
             }
 
+            if (!String.IsNullOrEmpty(q))
+            {
+                PackageSearchResults searchResults = packageVersions.Search(q);
+                if (String.IsNullOrEmpty(sortOrder))
+                {
+                    packageVersions = searchResults.SortByRelevance();
+                }
+                else
+                {
+                    packageVersions = searchResults.Packages.SortBy(GetSortExpression(sortOrder));
+                }
+            }
+            else
+            {
+                packageVersions = packageVersions.SortBy(GetSortExpression(sortOrder));
+            }
+
+
             var viewModel = new PackageListViewModel(packageVersions,
                 q,
                 sortOrder,
@@ -155,6 +168,18 @@ namespace NuGetGallery
             ViewBag.SearchTerm = q;
 
             return View(viewModel);
+        }
+
+        private static string GetSortExpression(string sortOrder)
+        {
+            switch (sortOrder)
+            {
+                case "package-title":
+                    return "PackageRegistration.Id";
+                case "package-created":
+                    return "Published desc";
+            }
+            return "PackageRegistration.DownloadCount desc";
         }
 
         // NOTE: Intentionally NOT requiring authentication

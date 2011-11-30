@@ -41,8 +41,14 @@ namespace NuGetGallery
             {
                 packages = packages.Where(p => !p.IsPrerelease);
             }
-            return packages.Search(searchTerm)
-                           .ToV2FeedPackageQuery(Configuration.SiteRoot);
+
+            if (String.IsNullOrEmpty(searchTerm))
+            {
+                return packages.ToV2FeedPackageQuery();
+            }
+
+            var results = packages.Search(searchTerm);
+            return results.SortByRelevance().ToV2FeedPackageQuery();
         }
 
         public override Uri GetReadStreamUri(
