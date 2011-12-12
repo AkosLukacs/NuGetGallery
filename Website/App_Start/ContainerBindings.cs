@@ -35,7 +35,7 @@ namespace NuGetGallery
 
             Bind<IIndexingService>()
                 .To<LuceneService>()
-                .InSingletonScope();
+                .InRequestScope();
 
             Bind<EntitiesContext>()
                 .ToMethod(context => new EntitiesContext())

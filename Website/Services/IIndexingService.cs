@@ -4,9 +4,7 @@ namespace NuGetGallery
 {
     public interface IIndexingService
     {
-        void CreateIndex();
-
-        void UpdateIndex(Package package);
+        void UpdateIndex();
 
         IEnumerable<int> Search(string term);
     }

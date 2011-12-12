@@ -3,48 +3,44 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Web;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.Search;
 using Lucene.Net.Store;
+using WebBackgrounder;
 
 namespace NuGetGallery
 {
     public class LuceneService : IIndexingService
     {
+        private static readonly string _indexPath = Path.Combine(HttpRuntime.AppDomainAppPath, "App_Data", "Lucene");
+        private static readonly string _indexMetadataPath = Path.Combine(_indexPath, "index.metadata");
         private readonly IPackageService packageSvc;
 
         public LuceneService(IPackageService packageSvc)
         {
             this.packageSvc = packageSvc;
-            this.CreateIndex();
         }
 
-        public void CreateIndex()
+        public void UpdateIndex()
         {
             var directory = GetIndexDirectory();
 
             var analyzer = new StandardPackageAnalyzer();
-            var indexWriter = new IndexWriter(directory, analyzer, create: true, mfl: IndexWriter.MaxFieldLength.UNLIMITED);
+            var dateTime = GetLastWriteTime();
+            IEnumerable<Package> packages = packageSvc.GetLatestPackageVersions(allowPrerelease: true)
+                                                      .Where(p => p.Published > dateTime)
+                                                      .ToList();
+            if (packages.Any())
+            {
+                var indexWriter = new IndexWriter(directory, analyzer, create: dateTime == DateTime.MinValue, mfl: IndexWriter.MaxFieldLength.UNLIMITED);
+                AddPackages(indexWriter, packages);
+                indexWriter.Close();
+            }
 
-            IEnumerable<Package> packages = packageSvc.GetLatestPackageVersions(allowPrerelease: true);
-
-            AddPackage(indexWriter, packages);
-            indexWriter.Close();
-        }
-
-        public void UpdateIndex(Package package)
-        {
-            var directory = GetIndexDirectory();
-
-            var analyzer = new StandardPackageAnalyzer();
-            var indexWriter = new IndexWriter(directory, analyzer, create: true, mfl: IndexWriter.MaxFieldLength.UNLIMITED);
-
-            var query = new TermQuery(new Term("Id", package.PackageRegistration.Id));
-            indexWriter.DeleteDocuments(query);
-            AddPackage(indexWriter, new[] { package });
-            indexWriter.Close();
+            UpdateLastWriteTime();
         }
 
         public IEnumerable<int> Search(string searchTerm)
@@ -73,18 +69,14 @@ namespace NuGetGallery
             return results.scoreDocs.Select(c => Int32.Parse(searcher.Doc(c.doc).Get("Key"), CultureInfo.InvariantCulture));
         }
 
-        private static Lucene.Net.Store.Directory GetIndexDirectory()
-        {
-            var appDataPath = Path.Combine(HttpRuntime.AppDomainAppPath, "App_Data", "Lucene");
-            var directory = new SimpleFSDirectory(new DirectoryInfo(appDataPath));
-
-            return directory;
-        }
-
-        private static void AddPackage(IndexWriter indexWriter, IEnumerable<Package> packages)
+        private static void AddPackages(IndexWriter indexWriter, IEnumerable<Package> packages)
         {
             foreach (var package in packages)
             {
+                // If there's an older entry for this package, remove it.
+                var query = new TermQuery(new Term("Id", package.PackageRegistration.Id));
+                indexWriter.DeleteDocuments(query);
+
                 var document = new Document();
 
                 document.Add(new Field("Key", package.Key.ToString(CultureInfo.InvariantCulture), Field.Store.YES, Field.Index.NO));
@@ -107,6 +99,26 @@ namespace NuGetGallery
                 }
                 indexWriter.AddDocument(document);
             }
+        }
+
+        private static Lucene.Net.Store.Directory GetIndexDirectory()
+        {
+            return new SimpleFSDirectory(new DirectoryInfo(_indexPath));
+        }
+
+        private static DateTime GetLastWriteTime()
+        {
+            if (!File.Exists(_indexMetadataPath))
+            {
+                File.WriteAllBytes(_indexMetadataPath, new byte[0]);
+                return DateTime.MinValue;
+            }
+            return File.GetLastWriteTimeUtc(_indexMetadataPath);
+        }
+
+        private static void UpdateLastWriteTime()
+        {
+            File.SetLastWriteTimeUtc(_indexMetadataPath, DateTime.UtcNow);
         }
     }
 }

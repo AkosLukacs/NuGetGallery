@@ -44,18 +44,17 @@ namespace NuGetGallery
 
             if (String.IsNullOrEmpty(searchTerm))
             {
-                return packages.ToV2FeedPackageQuery();
+                return packages.ToV2FeedPackageQuery(Configuration.SiteRoot);
             }
 
             var results = packages.Search(searchTerm);
-            return results.SortByRelevance().ToV2FeedPackageQuery();
+            return results.SortByRelevance().ToV2FeedPackageQuery(Configuration.SiteRoot);
         }
 
         public override Uri GetReadStreamUri(
            object entity,
            DataServiceOperationContext operationContext)
         {
-
             var package = (V2FeedPackage)entity;
             var httpContext = new HttpContextWrapper(HttpContext.Current);
             var urlHelper = new UrlHelper(new RequestContext(httpContext, new RouteData()));
