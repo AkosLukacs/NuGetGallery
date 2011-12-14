@@ -21,17 +21,20 @@ namespace NuGetGallery
         private readonly IUploadFileService uploadFileSvc;
         private readonly IUserService userSvc;
         private readonly IMessageService messageService;
+        private readonly ISearchService searchSvc;
 
         public PackagesController(
             IPackageService packageSvc,
             IUploadFileService uploadFileSvc,
             IUserService userSvc,
-            IMessageService messageService)
+            IMessageService messageService,
+            ISearchService searchSvc)
         {
             this.packageSvc = packageSvc;
             this.uploadFileSvc = uploadFileSvc;
             this.userSvc = userSvc;
             this.messageService = messageService;
+            this.searchSvc = searchSvc;
         }
 
         [Authorize]
@@ -142,14 +145,14 @@ namespace NuGetGallery
 
             if (!String.IsNullOrEmpty(q))
             {
-                PackageSearchResults searchResults = packageVersions.Search(q);
                 if (String.IsNullOrEmpty(sortOrder))
                 {
-                    packageVersions = searchResults.SortByRelevance();
+                    packageVersions = searchSvc.SearchWithRelevance(packageVersions, q);
                 }
                 else
                 {
-                    packageVersions = searchResults.Packages.SortBy(GetSortExpression(sortOrder));
+                    packageVersions = searchSvc.Search(packageVersions, q)
+                                                   .SortBy(GetSortExpression(sortOrder));
                 }
             }
             else

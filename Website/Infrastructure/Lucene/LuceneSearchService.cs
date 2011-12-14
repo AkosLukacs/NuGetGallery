@@ -10,7 +10,41 @@ namespace NuGetGallery
 {
     public class LuceneSearchService : ISearchService
     {
-        public IEnumerable<int> Search(string searchTerm)
+        public IQueryable<Package> Search(IQueryable<Package> packages, string searchTerm)
+        {
+            if (String.IsNullOrEmpty(searchTerm))
+            {
+                return packages;
+            }
+            var keys = SearchCore(searchTerm);
+            return SearchByKeys(packages, keys);
+        }
+
+        public IQueryable<Package> SearchWithRelevance(IQueryable<Package> packages, string searchTerm)
+        {
+            if (String.IsNullOrEmpty(searchTerm))
+            {
+                return packages;
+            }
+
+            var keys = SearchCore(searchTerm);
+            if (!keys.Any())
+            {
+                return Enumerable.Empty<Package>().AsQueryable();
+            }
+            var results = SearchByKeys(packages, keys);
+
+            var dict = results.ToDictionary(p => p.Key, p => p);
+            return keys.Select(k => dict[k])
+                       .AsQueryable();
+        }
+
+        private static IQueryable<Package> SearchByKeys(IQueryable<Package> packages, IEnumerable<int> keys)
+        {
+            return packages.Where(p => keys.Contains(p.Key));
+        }
+
+        private static IEnumerable<int> SearchCore(string searchTerm)
         {
             if (!Directory.Exists(LuceneCommon.IndexPath))
             {

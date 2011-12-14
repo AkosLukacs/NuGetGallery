@@ -16,8 +16,8 @@ namespace NuGetGallery
 
         }
 
-        public V1Feed(IEntityRepository<Package> repo, IConfiguration configuration)
-            : base(repo, configuration)
+        public V1Feed(IEntityRepository<Package> repo, IConfiguration configuration, ISearchService searchSvc)
+            : base(repo, configuration, searchSvc)
         {
 
         }
@@ -55,9 +55,8 @@ namespace NuGetGallery
             {
                 return packages.ToV1FeedPackageQuery(Configuration.SiteRoot);
             }
-            return packages.Search(searchTerm)
-                           .SortByRelevance()
-                           .ToV1FeedPackageQuery(Configuration.SiteRoot);
+            return SearchService.SearchWithRelevance(packages, searchTerm)
+                                .ToV1FeedPackageQuery(Configuration.SiteRoot);
         }
     }
 }

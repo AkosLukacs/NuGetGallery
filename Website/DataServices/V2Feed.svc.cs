@@ -17,8 +17,8 @@ namespace NuGetGallery
 
         }
 
-        public V2Feed(IEntityRepository<Package> repo, IConfiguration configuration)
-            : base(repo, configuration)
+        public V2Feed(IEntityRepository<Package> repo, IConfiguration configuration, ISearchService searchSvc)
+            : base(repo, configuration, searchSvc)
         {
 
         }
@@ -47,8 +47,8 @@ namespace NuGetGallery
                 return packages.ToV2FeedPackageQuery(Configuration.SiteRoot);
             }
 
-            var results = packages.Search(searchTerm);
-            return results.SortByRelevance().ToV2FeedPackageQuery(Configuration.SiteRoot);
+            return SearchService.SearchWithRelevance(packages, searchTerm)
+                                .ToV2FeedPackageQuery(Configuration.SiteRoot);
         }
 
         public override Uri GetReadStreamUri(

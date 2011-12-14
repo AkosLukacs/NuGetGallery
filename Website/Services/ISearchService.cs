@@ -1,9 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace NuGetGallery
 {
     public interface ISearchService
     {
-        IEnumerable<int> Search(string term);
+        IQueryable<Package> Search(IQueryable<Package> packages, string searchTerm);
+
+        IQueryable<Package> SearchWithRelevance(IQueryable<Package> packages, string searchTerm);
     }
 }
