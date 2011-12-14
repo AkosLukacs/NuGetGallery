@@ -183,11 +183,13 @@
     <Compile Include="Infrastructure\HttpHeaderValueProvider.cs" />
     <Compile Include="Infrastructure\HttpHeaderValueProviderFactory.cs" />
     <Compile Include="Infrastructure\HttpStatusCodeWithBodyResult.cs" />
-    <Compile Include="Infrastructure\Jobs\LuceneIndexerJob.cs" />
-    <Compile Include="Services\LuceneService.cs" />
+    <Compile Include="Infrastructure\Lucene\LuceneFileSystem.cs" />
+    <Compile Include="Infrastructure\Lucene\LuceneCommon.cs" />
+    <Compile Include="Infrastructure\Lucene\LuceneIndexerJob.cs" />
     <Compile Include="Infrastructure\Jobs\WorkItemCleanupJob.cs" />
     <Compile Include="Infrastructure\Jobs\UpdateStatisticsJob.cs" />
-    <Compile Include="Infrastructure\StandardPackageAnalyzer.cs" />
+    <Compile Include="Infrastructure\Lucene\PackageIndexEntity.cs" />
+    <Compile Include="Infrastructure\Lucene\StandardPackageAnalyzer.cs" />
     <Compile Include="JsonApiController.generated.cs">
       <DependentUpon>T4MVC.tt</DependentUpon>
     </Compile>
@@ -248,7 +250,7 @@
     <Compile Include="Services\ICloudBlobClient.cs" />
     <Compile Include="Services\ICloudBlobContainer.cs" />
     <Compile Include="Services\IFileStorageService.cs" />
-    <Compile Include="Services\IIndexingService.cs" />
+    <Compile Include="Services\ISearchService.cs" />
     <Compile Include="Services\IUploadFileService.cs" />
     <Compile Include="Services\PackageFileService.cs" />
     <Compile Include="RequireRemoteHttpsAttribute.cs" />
@@ -723,6 +725,7 @@
     <Content Include="_app_offline.htm" />
     <Content Include="Views\Users\ResendConfirmation.cshtml">
     </Content>
+    <Compile Include="Infrastructure\Lucene\LuceneSearchService.cs" />
     <None Include="_bin_deployableAssemblies\Microsoft.Web.Infrastructure.dll" />
     <None Include="_bin_deployableAssemblies\System.Web.WebPages.Razor.dll" />
     <None Include="_bin_deployableAssemblies\System.Web.WebPages.dll" />

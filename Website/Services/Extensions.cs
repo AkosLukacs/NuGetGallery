@@ -7,7 +7,7 @@ namespace NuGetGallery
     {
         public static PackageSearchResults Search(this IQueryable<Package> source, string searchTerm)
         {
-            var service = Container.Kernel.Get<IIndexingService>();
+            var service = Container.Kernel.Get<ISearchService>();
             var ids = service.Search(searchTerm);
             var results = source.Where(s => ids.Contains(s.Key));
 
@@ -17,8 +17,14 @@ namespace NuGetGallery
 
         public static IQueryable<Package> SortByRelevance(this PackageSearchResults packageSearchResults)
         {
-            var dict = packageSearchResults.Packages.ToDictionary(p => p.Key, p => p);
+            var packages = packageSearchResults.Packages;
+            if (!packages.Any())
+            {
+                return Enumerable.Empty<Package>()
+                                 .AsQueryable();
+            }
 
+            var dict = packages.ToDictionary(p => p.Key, p => p);
             return packageSearchResults.RankedKeys.Select(k => dict[k])
                                                   .AsQueryable();
         }

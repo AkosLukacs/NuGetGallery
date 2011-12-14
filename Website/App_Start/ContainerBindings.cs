@@ -33,8 +33,8 @@ namespace NuGetGallery
 
             Bind<GallerySetting>().ToMethod(c => gallerySetting.Value);
 
-            Bind<IIndexingService>()
-                .To<LuceneService>()
+            Bind<ISearchService>()
+                .To<LuceneSearchService>()
                 .InRequestScope();
 
             Bind<EntitiesContext>()

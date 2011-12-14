@@ -19,7 +19,7 @@ namespace NuGetGallery
             var jobs = new IJob[] { 
                 new UpdateStatisticsJob(TimeSpan.FromSeconds(10), () => new EntitiesContext(), timeout: TimeSpan.FromMinutes(5)),
                 new WorkItemCleanupJob(TimeSpan.FromDays(1), () => new EntitiesContext(), timeout: TimeSpan.FromDays(4)),
-                new LuceneIndexerJob(TimeSpan.FromMinutes(1), timeout: TimeSpan.FromMinutes(2)),
+                new LuceneIndexingJob(TimeSpan.FromMinutes(1), timeout: TimeSpan.FromMinutes(2)),
             };
 
             var jobCoordinator = new WebFarmJobCoordinator(new EntityWorkItemRepository(() => new EntitiesContext()));

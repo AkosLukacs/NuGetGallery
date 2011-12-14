@@ -2,10 +2,8 @@
 
 namespace NuGetGallery
 {
-    public interface IIndexingService
+    public interface ISearchService
     {
-        void UpdateIndex();
-
         IEnumerable<int> Search(string term);
     }
 }
