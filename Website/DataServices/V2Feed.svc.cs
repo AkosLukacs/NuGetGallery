@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data.Entity;
 using System.Data.Services;
 using System.Linq;
 using System.ServiceModel.Web;
@@ -36,7 +37,8 @@ namespace NuGetGallery
         public IQueryable<V2FeedPackage> Search(string searchTerm, string targetFramework, bool includePrerelease)
         {
             // Filter out unlisted packages when searching. We will return it when a generic "GetPackages" request comes and filter it on the client.
-            var packages = PackageRepo.GetAll().Where(p => p.Listed);
+            var packages = PackageRepo.GetAll()
+                                      .Where(p => p.Listed && (p.IsLatest || p.IsLatestStable));
             if (!includePrerelease)
             {
                 packages = packages.Where(p => !p.IsPrerelease);
@@ -47,6 +49,7 @@ namespace NuGetGallery
                 return packages.ToV2FeedPackageQuery(Configuration.SiteRoot);
             }
 
+            packages = packages.Include(p => p.PackageRegistration);
             return SearchService.SearchWithRelevance(packages, searchTerm)
                                 .ToV2FeedPackageQuery(Configuration.SiteRoot);
         }

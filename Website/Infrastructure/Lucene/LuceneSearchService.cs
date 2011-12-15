@@ -35,7 +35,8 @@ namespace NuGetGallery
             var results = SearchByKeys(packages, keys);
 
             var dict = results.ToDictionary(p => p.Key, p => p);
-            return keys.Select(k => dict[k])
+            return keys.Select(k => { Package package; dict.TryGetValue(k, out package); return package; })
+                       .Where(p => p != null)
                        .AsQueryable();
         }
 
