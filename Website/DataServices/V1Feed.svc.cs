@@ -55,7 +55,7 @@ namespace NuGetGallery
             {
                 return packages.ToV1FeedPackageQuery(Configuration.SiteRoot);
             }
-            return SearchService.SearchWithRelevance(packages, searchTerm)
+            return SearchService.Search(packages, searchTerm)
                                 .ToV1FeedPackageQuery(Configuration.SiteRoot);
         }
     }

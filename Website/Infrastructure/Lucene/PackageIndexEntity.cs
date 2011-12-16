@@ -13,5 +13,7 @@
         public string Tags { get; set; }
 
         public string Authors { get; set; }
+
+        public int DownloadCount { get; set; }
     }
 }

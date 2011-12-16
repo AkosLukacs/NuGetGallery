@@ -35,9 +35,16 @@ namespace NuGetGallery
             var results = SearchByKeys(packages, keys);
 
             var dict = results.ToDictionary(p => p.Key, p => p);
-            return keys.Select(k => { Package package; dict.TryGetValue(k, out package); return package; })
+            return keys.Select(key => LookupPackage(dict, key))
                        .Where(p => p != null)
                        .AsQueryable();
+        }
+
+        private static Package LookupPackage(Dictionary<int, Package> dict, int key)
+        {
+            Package package; 
+            dict.TryGetValue(key, out package); 
+            return package;
         }
 
         private static IQueryable<Package> SearchByKeys(IQueryable<Package> packages, IEnumerable<int> keys)
@@ -59,17 +66,14 @@ namespace NuGetGallery
                 var booleanQuery = new BooleanQuery();
                 foreach (var term in searchTerm.ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    var id = new TermQuery(new Term("Id", term));
+                    booleanQuery.Add(new TermQuery(new Term("Id", term)), BooleanClause.Occur.SHOULD);
+                    booleanQuery.Add(new TermQuery(new Term("Title", term)), BooleanClause.Occur.SHOULD);
+                    booleanQuery.Add(new TermQuery(new Term("Author", term)), BooleanClause.Occur.SHOULD);
+                    booleanQuery.Add(new FuzzyQuery(new Term("Tags", term), 0.8f, 2), BooleanClause.Occur.SHOULD);
 
-                    var title = new TermQuery(new Term("Title", term));
-
-                    var tags = new FuzzyQuery(new Term("Tags", term));
-
-                    var desc = new FuzzyQuery(new Term("Description", term));
-                    desc.SetBoost(0.8f);
-                    var author = new TermQuery(new Term("Author", term));
-
-                    booleanQuery.Add(id.Combine(new Query[] { id, title, tags, desc, author }), BooleanClause.Occur.SHOULD);
+                    var desc = new FuzzyQuery(new Term("Description", term), 0.8f, 3);
+                    desc.SetBoost(0.7f);
+                    booleanQuery.Add(desc, BooleanClause.Occur.SHOULD);
                 }
                 var results = searcher.Search(booleanQuery, filter: null, n: 1000, sort: Sort.RELEVANCE);
                 return results.scoreDocs.Select(c => Int32.Parse(searcher.Doc(c.doc).Get("Key"), CultureInfo.InvariantCulture));

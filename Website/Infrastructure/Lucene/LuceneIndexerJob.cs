@@ -33,33 +33,30 @@ namespace NuGetGallery
                 var analyzer = new StandardPackageAnalyzer();
 
                 var dateTime = GetLastWriteTime();
-                bool firstTimeCreation = dateTime == _minDateValue;
+                bool recreateIndex = dateTime == _minDateValue;
                 using (var context = new EntitiesContext())
                 {
-                    string sql = @"Select p.[Key], pr.Id, p.Title, p.Description, p.Tags, p.FlattenedAuthors as Authors
+                    string sql = @"Select p.[Key], pr.Id, p.Title, p.Description, p.Tags, p.FlattenedAuthors as Authors, pr.DownloadCount
                                from Packages p join PackageRegistrations pr on p.PackageRegistrationKey = pr.[Key]
-                               where p.Listed = 1 and 
-                               (p.IsLatestStable = 1 or (p.IsLatest = 1 
-                                                        and not exists (Select * from Packages iP join PackageRegistrations iPr on iP.PackageRegistrationKey = iPr.[Key] where iPr.Id = pr.Id)))
+                               where p.Listed = 1 
                                and p.Published > @PublishedDate";
                     var packages = context.Database.SqlQuery<PackageIndexEntity>(sql, new SqlParameter("PublishedDate", dateTime))
                                                    .ToList();
 
-                    if (packages.Any() || firstTimeCreation)
+                    if (packages.Any() || recreateIndex)
                     {
-                        var indexWriter = new IndexWriter(directory, analyzer, create: firstTimeCreation, mfl: IndexWriter.MaxFieldLength.UNLIMITED);
+                        var indexWriter = new IndexWriter(directory, analyzer, create: recreateIndex, mfl: IndexWriter.MaxFieldLength.UNLIMITED);
                         AddPackages(indexWriter, packages);
                         indexWriter.Close();
-
                     }
                 }
             }
-
             UpdateLastWriteTime();
         }
 
         private static void AddPackages(IndexWriter indexWriter, List<PackageIndexEntity> packages)
         {
+            var totalDownloadCount = packages.Sum(p => p.DownloadCount) + 1;
             foreach (var package in packages)
             {
                 // If there's an older entry for this package, remove it.
@@ -84,7 +81,9 @@ namespace NuGetGallery
                     document.Add(new Field("Author", author, Field.Store.NO, Field.Index.ANALYZED));
                 }
 
-                indexWriter.UpdateDocument(new Term("Id", package.Id), document);
+                document.SetBoost((float)Math.Pow(2, (package.DownloadCount / totalDownloadCount)));
+
+                indexWriter.AddDocument(document);
             }
         }
 

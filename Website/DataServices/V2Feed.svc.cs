@@ -38,18 +38,13 @@ namespace NuGetGallery
         {
             // Filter out unlisted packages when searching. We will return it when a generic "GetPackages" request comes and filter it on the client.
             var packages = PackageRepo.GetAll()
-                                      .Where(p => p.Listed && (p.IsLatest || p.IsLatestStable));
+                                      .Include(p => p.PackageRegistration)
+                                      .Where(p => p.Listed);
             if (!includePrerelease)
             {
                 packages = packages.Where(p => !p.IsPrerelease);
             }
 
-            if (String.IsNullOrEmpty(searchTerm))
-            {
-                return packages.ToV2FeedPackageQuery(Configuration.SiteRoot);
-            }
-
-            packages = packages.Include(p => p.PackageRegistration);
             return SearchService.SearchWithRelevance(packages, searchTerm)
                                 .ToV2FeedPackageQuery(Configuration.SiteRoot);
         }
