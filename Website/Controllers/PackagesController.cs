@@ -143,27 +143,30 @@ namespace NuGetGallery
                 packageVersions = packageVersions.Where(p => p.Listed);
             }
 
+            int totalHits;
             if (!String.IsNullOrEmpty(q))
             {
                 if (String.IsNullOrEmpty(sortOrder))
                 {
-                    packageVersions = searchSvc.SearchWithRelevance(packageVersions, q);
+                    packageVersions = searchSvc.SearchWithRelevance(packageVersions, q, take: page * Constants.DefaultPackageListPageSize, totalHits: out totalHits);
                 }
                 else
                 {
                     packageVersions = searchSvc.Search(packageVersions, q)
                                                    .SortBy(GetSortExpression(sortOrder));
+                    totalHits = packageVersions.Count();
                 }
             }
             else
             {
                 packageVersions = packageVersions.SortBy(GetSortExpression(sortOrder));
+                totalHits = packageVersions.Count();
             }
-
 
             var viewModel = new PackageListViewModel(packageVersions,
                 q,
                 sortOrder,
+                totalHits,
                 page - 1,
                 Constants.DefaultPackageListPageSize,
                 Url);

@@ -10,6 +10,8 @@ namespace NuGetGallery
 {
     public class LuceneSearchService : ISearchService
     {
+        private const int MaximumRecordsToReturn = 1000;
+
         public IQueryable<Package> Search(IQueryable<Package> packages, string searchTerm)
         {
             if (String.IsNullOrEmpty(searchTerm))
@@ -22,6 +24,13 @@ namespace NuGetGallery
 
         public IQueryable<Package> SearchWithRelevance(IQueryable<Package> packages, string searchTerm)
         {
+            int numberOfHits;
+            return SearchWithRelevance(packages, searchTerm, MaximumRecordsToReturn, out numberOfHits);
+        }
+
+        public IQueryable<Package> SearchWithRelevance(IQueryable<Package> packages, string searchTerm, int take, out int numberOfHits)
+        {
+            numberOfHits = 0;
             if (String.IsNullOrEmpty(searchTerm))
             {
                 return packages;
@@ -32,10 +41,12 @@ namespace NuGetGallery
             {
                 return Enumerable.Empty<Package>().AsQueryable();
             }
-            var results = SearchByKeys(packages, keys);
 
-            var dict = results.ToDictionary(p => p.Key, p => p);
-            return keys.Select(key => LookupPackage(dict, key))
+            numberOfHits = keys.Count();
+            var results = SearchByKeys(packages, keys.Take(take));
+            var lookup = results.ToDictionary(p => p.Key, p => p);
+
+            return keys.Select(key => LookupPackage(lookup, key))
                        .Where(p => p != null)
                        .AsQueryable();
         }
@@ -66,8 +77,18 @@ namespace NuGetGallery
                 var booleanQuery = new BooleanQuery();
                 foreach (var term in searchTerm.ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    booleanQuery.Add(new TermQuery(new Term("Id", term)), BooleanClause.Occur.SHOULD);
-                    booleanQuery.Add(new TermQuery(new Term("Title", term)), BooleanClause.Occur.SHOULD);
+                    var exactIdMatch = new TermQuery(new Term("Id-Exact", term));
+                    exactIdMatch.SetBoost(10.0f);
+                    booleanQuery.Add(exactIdMatch, BooleanClause.Occur.SHOULD); 
+                    
+                    var idQuery = new PrefixQuery(new Term("Id", term));
+                    idQuery.SetBoost(1.8f);
+                    booleanQuery.Add(idQuery, BooleanClause.Occur.SHOULD);
+
+                    var titleQuery = new TermQuery(new Term("Title", term));
+                    titleQuery.SetBoost(2.5f);
+                    booleanQuery.Add(titleQuery, BooleanClause.Occur.SHOULD);
+
                     booleanQuery.Add(new TermQuery(new Term("Author", term)), BooleanClause.Occur.SHOULD);
                     booleanQuery.Add(new FuzzyQuery(new Term("Tags", term), 0.8f, 2), BooleanClause.Occur.SHOULD);
 

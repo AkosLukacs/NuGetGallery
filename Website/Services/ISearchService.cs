@@ -8,5 +8,7 @@ namespace NuGetGallery
         IQueryable<Package> Search(IQueryable<Package> packages, string searchTerm);
 
         IQueryable<Package> SearchWithRelevance(IQueryable<Package> packages, string searchTerm);
+
+        IQueryable<Package> SearchWithRelevance(IQueryable<Package> packages, string searchTerm, int take, out int totalHits);
     }
 }

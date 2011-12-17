@@ -10,6 +10,7 @@ namespace NuGetGallery
         public PackageListViewModel(IQueryable<Package> packages,
             string searchTerm,
             string sortOrder,
+            int totalCount,
             int pageIndex,
             int pageSize,
             UrlHelper url)
@@ -25,7 +26,7 @@ namespace NuGetGallery
             }
             PageIndex = pageIndex;
             PageSize = pageSize;
-            TotalCount = packages.Count();
+            TotalCount = totalCount;
             SortOrder = sortOrder;
             SearchTerm = searchTerm;
             int pageCount = (TotalCount + PageSize - 1) / PageSize;
