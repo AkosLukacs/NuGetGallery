@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
+using Lucene.Net.Search;
 using WebBackgrounder;
 
 namespace NuGetGallery
@@ -27,31 +28,17 @@ namespace NuGetGallery
 
         private void UpdateIndex()
         {
-            using (var directory = new LuceneFileSystem(LuceneCommon.IndexPath))
+            DateTime? lastWriteTime = GetLastWriteTime();
+            bool creatingIndex = true;// lastWriteTime == null;
+            var analyzer = new StandardPackageAnalyzer();
+            using (var context = new EntitiesContext())
             {
-                var analyzer = new StandardPackageAnalyzer();
-
-                var indexCreatedTime = GetCreatedTime();
-                if (indexCreatedTime != null && ((indexCreatedTime - DateTime.UtcNow) > TimeSpan.FromDays(2)))
+                var packages = GetPackages(context, lastWriteTime);
+                if (packages.Any())
                 {
-                    ClearIndex();
-                }
-
-                var dateTime = GetLastWriteTime();
-                bool recreateIndex = dateTime == _minDateValue;
-                using (var context = new EntitiesContext())
-                {
-                    string sql = @"Select p.[Key], pr.Id, p.Title, p.Description, p.Tags, p.FlattenedAuthors as Authors, pr.DownloadCount
-                               from Packages p join PackageRegistrations pr on p.PackageRegistrationKey = pr.[Key]
-                               where p.Listed = 1 
-                               and (p.IsLatestStable = 1 or (p.IsLatest = 1 and not exists (Select 1 from Packages iP where iP.PackageRegistrationKey = p.PackageRegistrationKey and p.IsLatestStable = 1)))
-                               and p.Published > @PublishedDate";
-                    var packages = context.Database.SqlQuery<PackageIndexEntity>(sql, new SqlParameter("PublishedDate", dateTime))
-                                                   .ToList();
-
-                    if (packages.Any() || recreateIndex)
+                    using (var directory = new LuceneFileSystem(LuceneCommon.IndexPath))
                     {
-                        var indexWriter = new IndexWriter(directory, analyzer, create: recreateIndex, mfl: IndexWriter.MaxFieldLength.UNLIMITED);
+                        var indexWriter = new IndexWriter(directory, analyzer, create: creatingIndex, mfl: IndexWriter.MaxFieldLength.UNLIMITED);
                         AddPackages(indexWriter, packages);
                         indexWriter.Close();
                     }
@@ -60,11 +47,36 @@ namespace NuGetGallery
             UpdateLastWriteTime();
         }
 
+        private static List<PackageIndexEntity> GetPackages(EntitiesContext context, DateTime? dateTime)
+        {
+            if (dateTime == null)
+            {
+                // If we're creating the index for the first time, fetch the new packages.
+                string sql = @"Select p.[Key], pr.Id, p.Title, p.Description, p.Tags, p.FlattenedAuthors as Authors, p.[Key] as LatestKey
+                         from Packages p join PackageRegistrations pr on p.PackageRegistrationKey = pr.[Key]
+                         where p.IsLatestStable = 1 or (p.IsLatest = 1 and Not exists (Select 1 from Packages iP where iP.PackageRegistrationKey = p.PackageRegistrationKey and p.IsLatestStable = 1))";
+                return context.Database.SqlQuery<PackageIndexEntity>(sql).ToList();
+            }
+            else
+            {
+                string sql = @"Select p.[Key], pr.Id, p.Title, p.Description, p.Tags, p.FlattenedAuthors as Authors, 
+                                   LatestKey = CASE When p.IsLatest = 1 then p.[Key] Else (Select pLatest.[Key] from Packages pLatest where pLatest.PackageRegistrationKey = pr.[Key] and pLatest.IsLatest = 1) End
+                                   from Packages p join PackageRegistrations pr on p.PackageRegistrationKey = pr.[Key]
+                                   where p.LastUpdated > @UpdatedDate";
+                return context.Database.SqlQuery<PackageIndexEntity>(sql, new SqlParameter("UpdatedDate", dateTime.Value)).ToList();
+            }
+        }
+
         private static void AddPackages(IndexWriter indexWriter, List<PackageIndexEntity> packages)
         {
-            var totalDownloadCount = packages.Sum(p => p.DownloadCount) + 1;
             foreach (var package in packages)
             {
+                if (package.Key != package.LatestKey)
+                {
+                    indexWriter.DeleteDocuments(new TermQuery(new Term("Key", package.Key.ToString(CultureInfo.InvariantCulture))));
+                    continue;
+                }
+
                 // If there's an older entry for this package, remove it.
                 var document = new Document();
 
@@ -88,9 +100,7 @@ namespace NuGetGallery
                     document.Add(new Field("Author", author, Field.Store.NO, Field.Index.ANALYZED));
                 }
 
-                document.SetBoost((float)Math.Pow(2, (package.DownloadCount / totalDownloadCount)));
-
-                indexWriter.UpdateDocument(new Term("Id", package.Id), document);
+                indexWriter.AddDocument(document);
             }
         }
 
@@ -103,7 +113,7 @@ namespace NuGetGallery
             return null;
         }
 
-        private static DateTime GetLastWriteTime()
+        private static DateTime? GetLastWriteTime()
         {
             if (!File.Exists(LuceneCommon.IndexMetadataPath))
             {
@@ -112,7 +122,7 @@ namespace NuGetGallery
                     Directory.CreateDirectory(LuceneCommon.IndexPath);
                 }
                 File.WriteAllBytes(LuceneCommon.IndexMetadataPath, new byte[0]);
-                return _minDateValue;
+                return null;
             }
             return File.GetLastWriteTimeUtc(LuceneCommon.IndexMetadataPath);
         }

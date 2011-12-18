@@ -266,7 +266,7 @@ namespace NuGetGallery
                 PackageFileSize = packageFileStream.Length,
                 Created = now,
                 LastUpdated = now,
-                Published = DateTime.UtcNow,
+                Published = now,
                 Copyright = nugetPackage.Copyright,
                 IsPrerelease = !nugetPackage.IsReleaseVersion(),
                 Listed = true
@@ -344,6 +344,7 @@ namespace NuGetGallery
             if (latestPackage != null)
             {
                 latestPackage.IsLatest = true;
+                latestPackage.LastUpdated = DateTime.UtcNow;
 
                 if (latestPackage.IsPrerelease)
                 {
@@ -354,6 +355,7 @@ namespace NuGetGallery
                     {
                         // We could have no release packages
                         latestReleasePackage.IsLatestStable = true;
+                        latestReleasePackage.LastUpdated = DateTime.UtcNow;
                     }
                 }
                 else
@@ -410,6 +412,7 @@ namespace NuGetGallery
             }
 
             package.Listed = true;
+            package.LastUpdated = DateTime.UtcNow;
 
             UpdateIsLatest(package.PackageRegistration);
 
@@ -429,6 +432,8 @@ namespace NuGetGallery
             }
 
             package.Listed = false;
+            package.LastUpdated = DateTime.UtcNow;
+
             if (package.IsLatest || package.IsLatestStable)
             {
                 UpdateIsLatest(package.PackageRegistration);

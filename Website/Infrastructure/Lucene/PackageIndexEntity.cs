@@ -14,6 +14,6 @@
 
         public string Authors { get; set; }
 
-        public int DownloadCount { get; set; }
+        public int LatestKey { get; set; }
     }
 }
