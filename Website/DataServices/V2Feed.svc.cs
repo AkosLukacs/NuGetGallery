@@ -38,16 +38,27 @@ namespace NuGetGallery
         {
             // Filter out unlisted packages when searching. We will return it when a generic "GetPackages" request comes and filter it on the client.
             var packages = PackageRepo.GetAll()
-                                      .Include(p => p.PackageRegistration)
-                                      .Where(p => p.Listed);
+                          .Include(p => p.PackageRegistration)
+                          .Where(p => p.Listed);
             if (!includePrerelease)
             {
                 packages = packages.Where(p => !p.IsPrerelease);
             }
 
-            return SearchService.SearchWithRelevance(packages, searchTerm)
+            var filter = HttpContext.Current.Request.QueryString["$filter"];
+            if (filter != null && (filter.Equals("IsLatestVersion", StringComparison.OrdinalIgnoreCase) || filter.Equals("IsAbsoluteLatestVersion", StringComparison.OrdinalIgnoreCase)))
+            {
+                // Super hacky way to determine if the user needs all packages. If the query contains no filtering based on IsLatest or IsAbsoluteLatest assume the user asked for all.
+                return SearchService.SearchWithRelevance(packages, searchTerm)
                                 .ToV2FeedPackageQuery(Configuration.SiteRoot);
-        }
+
+            }
+
+            return packages.Include(p => p.Authors)
+                            .Search(searchTerm)
+                            .ToV2FeedPackageQuery(Configuration.SiteRoot);
+            
+       }
 
         public override Uri GetReadStreamUri(
            object entity,

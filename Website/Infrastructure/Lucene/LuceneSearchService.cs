@@ -5,6 +5,9 @@ using System.IO;
 using System.Linq;
 using Lucene.Net.Index;
 using Lucene.Net.Search;
+using Lucene.Net.QueryParsers;
+using System.Collections;
+using Lucene.Net.Analysis.Standard;
 
 namespace NuGetGallery
 {
@@ -53,8 +56,8 @@ namespace NuGetGallery
 
         private static Package LookupPackage(Dictionary<int, Package> dict, int key)
         {
-            Package package; 
-            dict.TryGetValue(key, out package); 
+            Package package;
+            dict.TryGetValue(key, out package);
             return package;
         }
 
@@ -74,30 +77,18 @@ namespace NuGetGallery
             {
                 var searcher = new IndexSearcher(directory, readOnly: true);
 
-                var booleanQuery = new BooleanQuery();
-                foreach (var term in searchTerm.ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var exactIdMatch = new TermQuery(new Term("Id-Exact", term));
-                    exactIdMatch.SetBoost(10.0f);
-                    booleanQuery.Add(exactIdMatch, BooleanClause.Occur.SHOULD); 
-                    
-                    var idQuery = new PrefixQuery(new Term("Id", term));
-                    idQuery.SetBoost(1.8f);
-                    booleanQuery.Add(idQuery, BooleanClause.Occur.SHOULD);
+                searchTerm = searchTerm.ToLowerInvariant();
 
-                    var titleQuery = new TermQuery(new Term("Title", term));
-                    titleQuery.SetBoost(2.5f);
-                    booleanQuery.Add(titleQuery, BooleanClause.Occur.SHOULD);
-
-                    booleanQuery.Add(new TermQuery(new Term("Author", term)), BooleanClause.Occur.SHOULD);
-                    booleanQuery.Add(new FuzzyQuery(new Term("Tags", term), 0.8f, 2), BooleanClause.Occur.SHOULD);
-
-                    var desc = new FuzzyQuery(new Term("Description", term), 0.8f, 3);
-                    desc.SetBoost(0.7f);
-                    booleanQuery.Add(desc, BooleanClause.Occur.SHOULD);
-                }
-                var results = searcher.Search(booleanQuery, filter: null, n: 1000, sort: Sort.RELEVANCE);
-                return results.scoreDocs.Select(c => Int32.Parse(searcher.Doc(c.doc).Get("Key"), CultureInfo.InvariantCulture));
+                var boosts = new Dictionary<string, float> { { "Id", 2.0f }, { "Title", 1.5f }, { "Description", 0.8f } };
+                var analyzer = new StandardAnalyzer(LuceneCommon.LuceneVersion);
+                var queryParser = new MultiFieldQueryParser(LuceneCommon.LuceneVersion, new[] { "Id", "Title", "Author", "Description", "Tags" }, analyzer, boosts);
+                
+                var query = queryParser.Parse(searchTerm);
+                var results = searcher.Search(query, filter: null, n: 1000, sort: Sort.RELEVANCE);
+                var keys = results.scoreDocs.Select(c => Int32.Parse(searcher.Doc(c.doc).Get("Key"), CultureInfo.InvariantCulture))
+                                            .ToList();
+                searcher.Close();
+                return keys;
             }
         }
     }

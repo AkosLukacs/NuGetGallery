@@ -9,6 +9,7 @@ using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.Search;
 using WebBackgrounder;
+using Lucene.Net.Analysis.Standard;
 
 namespace NuGetGallery
 {
@@ -30,7 +31,6 @@ namespace NuGetGallery
         {
             DateTime? lastWriteTime = GetLastWriteTime();
             bool creatingIndex = true;// lastWriteTime == null;
-            var analyzer = new StandardPackageAnalyzer();
             using (var context = new EntitiesContext())
             {
                 var packages = GetPackages(context, lastWriteTime);
@@ -38,6 +38,7 @@ namespace NuGetGallery
                 {
                     using (var directory = new LuceneFileSystem(LuceneCommon.IndexPath))
                     {
+                        var analyzer = new StandardAnalyzer(LuceneCommon.LuceneVersion);
                         var indexWriter = new IndexWriter(directory, analyzer, create: creatingIndex, mfl: IndexWriter.MaxFieldLength.UNLIMITED);
                         AddPackages(indexWriter, packages);
                         indexWriter.Close();
@@ -81,8 +82,8 @@ namespace NuGetGallery
                 var document = new Document();
 
                 document.Add(new Field("Key", package.Key.ToString(CultureInfo.InvariantCulture), Field.Store.YES, Field.Index.NO));
-                document.Add(new Field("Id-Exact", package.Id, Field.Store.NO, Field.Index.ANALYZED_NO_NORMS));
-                document.Add(new Field("Id", package.Id, Field.Store.NO, Field.Index.ANALYZED_NO_NORMS));
+                document.Add(new Field("Id-Exact", package.Id, Field.Store.YES, Field.Index.NOT_ANALYZED));
+                document.Add(new Field("Id", package.Id, Field.Store.NO, Field.Index.ANALYZED));
                 document.Add(new Field("Description", package.Description, Field.Store.NO, Field.Index.ANALYZED));
 
                 if (!String.IsNullOrEmpty(package.Title))

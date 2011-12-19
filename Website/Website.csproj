@@ -189,7 +189,6 @@
     <Compile Include="Infrastructure\Jobs\WorkItemCleanupJob.cs" />
     <Compile Include="Infrastructure\Jobs\UpdateStatisticsJob.cs" />
     <Compile Include="Infrastructure\Lucene\PackageIndexEntity.cs" />
-    <Compile Include="Infrastructure\Lucene\StandardPackageAnalyzer.cs" />
     <Compile Include="JsonApiController.generated.cs">
       <DependentUpon>T4MVC.tt</DependentUpon>
     </Compile>
